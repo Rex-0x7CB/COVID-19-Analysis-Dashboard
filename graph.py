@@ -185,7 +185,7 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
                 slope = (predictedLSR[0] - predictedLSR[-1]) / (le.transform([LSD_start]) - le.transform([LSD_end]))
                 print("slope=",slope)
                 if math.isnan(slope) == False:
-                        minimisedLSRTrace = go.Scatter(x=xGraph[xGraph.index(LSD_start):xGraph.index(LSD_end)+1], y=predictedLSR, mode='lines', name=country+", LSR({})".format(slope[0]))
+                        minimisedLSRTrace = go.Scatter(x=xGraph[xGraph.index(LSD_start):xGraph.index(LSD_end)+1], y=predictedLSR, mode='lines', name=country+", LSR({:.6f})".format(slope[0]))
                         data.append(minimisedLSRTrace)
                         if extendPredictionToThisManyDays > 0:
                                 dataToPredictOn = np.array(le2.transform(xGraphPredicted[xGraph.index(LSD_end)+1:xGraph.index(LSD_end)+1+extendPredictionToThisManyDays])).reshape((-1,1))
