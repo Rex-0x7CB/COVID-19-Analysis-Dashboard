@@ -12,7 +12,7 @@ from sklearn.linear_model import LinearRegression
 
 app = dash.Dash()
 df = pd.read_csv('full_data.csv')
-df2 = pd.read_csv('owid-covid-data.csv')
+
 countries_options = sorted([dict(label=country, value=country) for country in set([location for location in df.location])], key=lambda k: k['label']) 
 xAxis_options = [dict(label='Day', value='Day'),
                  dict(label='Date', value='Date')]
@@ -114,6 +114,7 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
                 elif x_axis == 'Date':
                         xGraph = dates
                         xGraphPredicted = [ x.strftime('%Y-%m-%d') for x in pd.date_range(start=xGraph[-1], periods=extendPredictionToThisManyDays+1) ]
+                        xGraphPredicted = xGraph + xGraphPredicted[1:]
                         xTitle = 'Dates'
 
                 for parameter in y_axis_parameter:
@@ -174,20 +175,9 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
 
                 le.fit(xGraph)
                 le2.fit(xGraphPredicted)
-                # for i in range(0,len(xGraph)):
-                #         print(i, " ", xGraph[i], " ", xGraphPredicted[i])
-                # for i in xGraph:
-                #         print(i, " ", le.transform([i]))
-                # for i in xGraphPredicted:
-                #         print(i, " ", le2.transform([i]))
-                
-                # extendPredictionToThisManyDays = 5
-                # print(LSD_start)
-                # for d in xGraph:
-                #         print(d)
+
                 dataToTrainOn = np.array(le.transform(xGraph[xGraph.index(LSD_start):xGraph.index(LSD_end)+1])).reshape((-1,1))
                 print(xGraph[xGraph.index(LSD_start):xGraph.index(LSD_end)+1])
-                # dataToPredictOn = np.array(le.transform(xGraph[xGraph.index(LSD_end)+1:xGraph.index(LSD_end)+1+extendPredictionToThisManyDays])).reshape((-1,1))
                 regr.fit(dataToTrainOn, pd.Series(yGraph[xGraph.index(LSD_start):xGraph.index(LSD_end)+1].dropna()))
 
                 # slope = (init_y - final_y) / (init_day - final_day)
@@ -200,7 +190,7 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
                         if extendPredictionToThisManyDays > 0:
                                 dataToPredictOn = np.array(le2.transform(xGraphPredicted[xGraph.index(LSD_end)+1:xGraph.index(LSD_end)+1+extendPredictionToThisManyDays])).reshape((-1,1))
                                 minimisedLSRTraceExtended = go.Scatter(x=xGraphPredicted[xGraph.index(LSD_end)+1:xGraph.index(LSD_end)+1+extendPredictionToThisManyDays], y=regr.predict(dataToPredictOn), mode='markers+lines', name=country+", LSR Extended")
-                                print(xGraphPredicted[xGraph.index(LSD_end)+1:xGraph.index(LSD_end)+1+extendPredictionToThisManyDays])
+                                # print(xGraphPredicted[xGraph.index(LSD_end)+1:xGraph.index(LSD_end)+1+extendPredictionToThisManyDays])
                                 data.append(minimisedLSRTraceExtended)
                 
                 
