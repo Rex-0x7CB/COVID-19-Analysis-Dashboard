@@ -7,8 +7,9 @@ import plotly.graph_objs as go
 from sklearn import preprocessing
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import BayesianRidge
 
 app = dash.Dash()
 df = pd.read_csv('full_data.csv')
@@ -28,6 +29,10 @@ yAxis_parameter = [dict(label='New Cases',value='New Cases'),
                   dict(label='Total Deaths',value='Total Deaths')
                   ]
 
+algorithm_options = [dict(label='Least Squared Residual', value ='Least Squared Residual'),
+                     dict(label='Bayesian Regression', value='Bayesian Regression')
+                ]
+
 LSD_start = []
 LSD_end = []
 
@@ -44,40 +49,84 @@ app.layout = html.Div([
         ),
 
         html.Div([dcc.Dropdown(id='yAxisParameter', options=yAxis_parameter, multi=True, value=['New Cases'])],
-                style=dict(width='33%', display='inline-block')
+                style=dict(width='30%', display='inline-block')
+        ),
+
+        html.Div([dcc.Dropdown(id='algorithm', multi=True, options=algorithm_options, value=['Least Squared Residual'])],
+                style=dict(width='29%', display='inline-block')
         ),
 
         html.Div([dcc.Dropdown(id='LSD_start', options=LSD_start)],
-                style=dict(width='10%', display='inline-block')
+                style=dict(width='8%', display='inline-block')
         ),
 
         html.Div([dcc.Dropdown(id='LSD_end', options=LSD_end)],
-                style=dict(width='10%', display='inline-block')
+                style=dict(width='8%', display='inline-block')
         ),
 
         html.Div([dcc.Dropdown(id='predictForThisManyDays', options=predictForThisManyDays)],
                 style=dict(width='5%', display='inline-block')
         ),
+        
+        html.Div([dcc.Dropdown(id='countries_picker', options=countries_options, multi=True, value=['India'])],
+                style=dict(width='95%', display='inline-block')
+        ),
+        html.Div([html.Button(id='predict_total', n_clicks=0, children='Predict')],
+                style=dict(width='5%', display='inline-block')
+        ),
+
+        dcc.Graph(id='graph-main'),
+
+        html.Div([dcc.Graph(id='predicted-daily')],
+                style=dict(width='50%', display='inline-block')
+        ),
+
+        html.Div([dcc.Graph(id='predicted-total')],
+                style=dict(width='50%', display='inline-block')
+        )
 
         
-        dcc.Dropdown(id='countries_picker', options=countries_options, multi=True, value=['India']),
-        dcc.Graph(id='graph')
-], style={ "height" : "70%", "border":"1px solid blue"}
+        
+]
 )
 
 
+def calculatePredicted(country, y, init_date):
+        df = pd.read_csv('full_data.csv')
+        df = df[ df['location'] == country ]
+        df = df[ df['date'] == init_date ]
+        # print(df)
+        init_infec = df.iloc[0]['total_cases']
+        # print("Country=", country)
+        # print("Percent Predicted =", y)
+        # print("Init Date =", init_date)
+        # print("Init Infected =", init_infec)
+
+        dailyPredictedCases = []
+        totalPredictedCases = []
+
+        for perc in y:
+                new_case = init_infec * (perc/100)
+                init_infec = init_infec + (init_infec * (perc/100))
+                dailyPredictedCases.append(new_case)
+                totalPredictedCases.append(int(init_infec))
+
+        return (dailyPredictedCases, totalPredictedCases)
 
 
-@app.callback(Output(component_id='graph',component_property='figure'),
+
+@app.callback(Output(component_id='graph-main',component_property='figure'),
                 [Input(component_id='xAxis', component_property='value'),
                 Input(component_id='yAxisFunction', component_property='value'),
                 Input(component_id='yAxisParameter', component_property='value'),
                 Input(component_id='countries_picker', component_property='value'),
                 Input(component_id='LSD_start', component_property='value'),
                 Input(component_id='LSD_end', component_property='value'),
-                Input(component_id='predictForThisManyDays', component_property='value')])
-def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_start, LSD_end, extendPredictionToThisManyDays):
+                Input(component_id='predictForThisManyDays', component_property='value'),
+                Input(component_id='algorithm', component_property='value')])
+def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_start, LSD_end, extendPredictionToThisManyDays, algorithm):
         data = []
+        xTitle = ''
         print(countries)
         print(x_axis)
         print(y_axis_function)
@@ -110,7 +159,7 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
                 if x_axis == 'Day':
                         xGraph = list(range(0,len(total_cases_country)))
                         xGraphPredicted = list(range(0,len(total_cases_country)+extendPredictionToThisManyDays))
-                        xTitle = 'Number of days since the 1st reported case in the country'
+                        xTitle = 'Number of days since the 1st reported case in a country'
                 elif x_axis == 'Date':
                         xGraph = dates
                         xGraphPredicted = [ x.strftime('%Y-%m-%d') for x in pd.date_range(start=xGraph[-1], periods=extendPredictionToThisManyDays+1) ]
@@ -118,6 +167,7 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
                         xTitle = 'Dates'
 
                 for parameter in y_axis_parameter:
+                        print(parameter)
                         if parameter == 'New Cases' and y_axis_function == 'None':
                                 yGraph = pd.Series(new_cases_country)
                                 yName = country+", {}".format(parameter)
@@ -133,67 +183,70 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
 
                         elif parameter == 'New Cases' and y_axis_function == 'Log 10':
                                 yGraph = pd.Series([np.log10(a) for a in new_cases_country])
-                                yName = country+", log10(New Cases)"
+                                yName = country+", log10({})".format(parameter)
                         elif parameter == 'New Deaths' and y_axis_function == 'Log 10':
                                 yGraph = pd.Series([np.log10(a) for a in new_deaths_country])
-                                yName = country+", log10(New Deaths)"
+                                yName = country+", log10({})".format(parameter)
                         elif parameter == 'Total Cases' and y_axis_function == 'Log 10':
                                 yGraph = pd.Series([np.log10(a) for a in total_cases_country])
-                                yName = country+", log10(Total Cases)"
+                                yName = country+", log10({})".format(parameter)
                         elif parameter == 'Total Deaths' and y_axis_function == 'Log 10':
                                 yGraph = pd.Series([np.log10(a) for a in total_deaths_country])
-                                yName = country+", log10(Total Deaths)"
+                                yName = country+", log10({})".format(parameter)
 
                         elif parameter == 'New Cases' and y_axis_function == '% Change':
                                 yGraph = pd.Series(new_cases_country).pct_change()*100
-                                yName = country+", % change in New Cases"
+                                yName = country+", % change in {}".format(parameter)
                         elif parameter == 'New Deaths' and y_axis_function == '% Change':
                                 yGraph = pd.Series(new_deaths_country).pct_change()*100
-                                yName = country+", % change in New Cases"
+                                yName = country+", % change in {}".format(parameter)
                         elif parameter == 'Total Cases' and y_axis_function == '% Change':
                                 yGraph = pd.Series(total_cases_country).pct_change()*100
-                                yName = country+", % change in New Cases"
+                                yName = country+", % change in {}".format(parameter)
                         elif parameter == 'Total Deaths' and y_axis_function == '% Change':
                                 yGraph = pd.Series(total_deaths_country).pct_change()*100
-                                yName = country+", % change in New Cases"
+                                yName = country+", % change in {}".format(parameter)
                 
                         data.append(go.Scatter(x=xGraph, y=yGraph, mode='markers+lines', name=yName))
-
-                regr = LinearRegression()
-
-                if (LSD_start == None) or (LSD_start not in xGraph):
-                        LSD_start = xGraph[-1]
-                
-                if (LSD_end == None) or (LSD_end not in xGraph):
-                        LSD_end = xGraph[-1]
-
-                # print(xGraph)
                 
 
-                le = preprocessing.LabelEncoder()
-                le2 = preprocessing.LabelEncoder()
+                        for algo in algorithm:
+                                print(algo)
+                                if algo == 'Least Squared Residual':
+                                        regr = LinearRegression()
+                                        algo_name = 'LSR'
+                                elif algo == 'Bayesian Regression':
+                                        regr = BayesianRidge()
+                                        algo_name = 'Linear Bayes'
 
-                le.fit(xGraph)
-                le2.fit(xGraphPredicted)
+                                if (LSD_start == None) or (LSD_start not in xGraph):
+                                        LSD_start = xGraph[-1]
+                                
+                                if (LSD_end == None) or (LSD_end not in xGraph):
+                                        LSD_end = xGraph[-1]
+                                
 
-                dataToTrainOn = np.array(le.transform(xGraph[xGraph.index(LSD_start):xGraph.index(LSD_end)+1])).reshape((-1,1))
-                print(xGraph[xGraph.index(LSD_start):xGraph.index(LSD_end)+1])
-                regr.fit(dataToTrainOn, pd.Series(yGraph[xGraph.index(LSD_start):xGraph.index(LSD_end)+1].dropna()))
+                                le = preprocessing.LabelEncoder()
 
-                # slope = (init_y - final_y) / (init_day - final_day)
-                predictedLSR = regr.predict(dataToTrainOn)
-                slope = (predictedLSR[0] - predictedLSR[-1]) / (le.transform([LSD_start]) - le.transform([LSD_end]))
-                print("slope=",slope)
-                if math.isnan(slope) == False:
-                        minimisedLSRTrace = go.Scatter(x=xGraph[xGraph.index(LSD_start):xGraph.index(LSD_end)+1], y=predictedLSR, mode='lines', name=country+", LSR({:.6f})".format(slope[0]))
-                        data.append(minimisedLSRTrace)
-                        if extendPredictionToThisManyDays > 0:
-                                dataToPredictOn = np.array(le2.transform(xGraphPredicted[xGraph.index(LSD_end)+1:xGraph.index(LSD_end)+1+extendPredictionToThisManyDays])).reshape((-1,1))
-                                minimisedLSRTraceExtended = go.Scatter(x=xGraphPredicted[xGraph.index(LSD_end)+1:xGraph.index(LSD_end)+1+extendPredictionToThisManyDays], y=regr.predict(dataToPredictOn), mode='markers+lines', name=country+", LSR Extended")
-                                # print(xGraphPredicted[xGraph.index(LSD_end)+1:xGraph.index(LSD_end)+1+extendPredictionToThisManyDays])
-                                data.append(minimisedLSRTraceExtended)
-                
-                
+                                le.fit(xGraphPredicted)
+
+                                dataToTrainOn = np.array(le.transform(xGraphPredicted[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1])).reshape((-1,1))
+                                # print(xGraphPredicted[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1])
+                                regr.fit(dataToTrainOn, pd.Series(yGraph[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1].dropna()))
+
+                                # slope = (init_y - final_y) / (init_day - final_day)
+                                predictedLSR = regr.predict(dataToTrainOn)
+                                slope = (predictedLSR[0] - predictedLSR[-1]) / (le.transform([LSD_start]) - le.transform([LSD_end]))
+                                # print("slope=",slope)
+                                if math.isnan(slope) == False:
+                                        minimisedLSRTrace = go.Scatter(x=xGraphPredicted[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1], y=predictedLSR, mode='lines', name=country+", "+algo_name+"({:.6f})".format(slope[0]))
+                                        data.append(minimisedLSRTrace)
+                                        if extendPredictionToThisManyDays > 0:
+                                                dataToPredictOn = np.array(le.transform(xGraphPredicted[xGraphPredicted.index(LSD_end)+1:xGraphPredicted.index(LSD_end)+1+extendPredictionToThisManyDays])).reshape((-1,1))
+                                                minimisedLSRTraceExtended = go.Scatter(x=xGraphPredicted[xGraphPredicted.index(LSD_end)+1:xGraphPredicted.index(LSD_end)+1+extendPredictionToThisManyDays], y=regr.predict(dataToPredictOn), mode='markers+lines', name=country+", "+algo_name+" Extended")
+                                                # print(xGraphPredicted[xGraphPredicted.index(LSD_end)+1:xGraphPredicted.index(LSD_end)+1+extendPredictionToThisManyDays])
+                                                data.append(minimisedLSRTraceExtended)
+
 
         layout = go.Layout(title='COVID-19 Transmission Analysis',
                                 xaxis=dict(title=xTitle),
@@ -217,11 +270,65 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
         return fig
         
 
+@app.callback(Output(component_id='predicted-daily',component_property='figure'),
+                [Input(component_id='predict_total', component_property='n_clicks')],
+                [State(component_id='graph-main',component_property='figure')])
+def update_predictedDaily(n_clicks, graph):
+        country = ""
+        init_date = ""
+        data = []
+        for trace in graph['data']:
+                if 'LSR(' in trace['name']:
+                        init_date = trace['x'][-1]
+                if 'LSR Extended' in trace['name']:
+                        country = trace['name'].replace(", LSR Extended", "")
+                        (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], init_date)
+                        data.append(go.Bar(x=trace['x'], y=predictedDailyCases, name=country+", New Cases(Predicted)"))
+        
+        layout = go.Layout(title='COVID-19 Predicted Daily Cases',
+                                xaxis=dict(title='Date'),
+                                yaxis=dict(title='Daily New Cases'), showlegend=True, hovermode='x')
+        fig = go.Figure(data=data, layout=layout)
+        return fig
+        
 
+@app.callback(Output(component_id='predicted-total',component_property='figure'),
+                [Input(component_id='predict_total', component_property='n_clicks')],
+                [State(component_id='graph-main',component_property='figure')])
+def update_predictedTotal(n_clicks, graph):
+        print("Current State Of Graph")
+        country = ""
+        data = []
+        initDateAxis = []
+        df = pd.read_csv('full_data.csv')
+        for trace in graph['data']:
+                if 'LSR(' in trace['name']:
+                        initDate = trace['x'][-1]
+                        print("Total cases on", initDate)
+                        print("Slope = ", trace['y'][2] - trace['y'][1])
+
+                if 'LSR' not in trace['name']:
+                        initDateAxis = trace['x']
+
+                if 'LSR Extended' in trace['name']:
+                        country = trace['name'].replace(", LSR Extended", "")
+                        print(country)
+                        print('initDate', initDate)
+                        (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], initDate)
+                        totalCases = df[ df['location'] == country ]['total_cases'].values.tolist()
+                        print(totalCases)
+                        data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", Total Cases(Actual)"))
+                        data.append(go.Scatter(x=trace['x'], y=predictedTotalCases, mode='markers+lines', name=country+", Total Cases(Predicted)"))
+        
+        layout = go.Layout(title='COVID-19 Predicted Total Cases',
+                                xaxis=dict(title='Date'),
+                                yaxis=dict(title='Daily Total Cases'), showlegend=True, hovermode='x')
+        fig = go.Figure(data=data, layout=layout)
+        return fig
 
 
 @app.callback(Output(component_id='LSD_start',component_property='options'),
-                [Input(component_id='graph',component_property='figure')])
+                [Input(component_id='graph-main',component_property='figure')])
 def update_LSDStart(fig):
         unique = []
         for trace in fig['data']:
@@ -232,7 +339,7 @@ def update_LSDStart(fig):
 
 
 @app.callback(Output(component_id='LSD_end',component_property='options'),
-                [Input(component_id='graph',component_property='figure')])
+                [Input(component_id='graph-main',component_property='figure')])
 def update_LSDEnd(fig):
         unique = []
         for trace in fig['data']:
@@ -240,19 +347,6 @@ def update_LSDEnd(fig):
 
         LSD_end = sorted([dict(label=point, value=point) for point in set(unique)], key=lambda k: k['label'])
         return LSD_end
-
-
-
-
-# @app.callback(Output(component_id='LSD_end',component_property='value'),
-#                 [Input(component_id='xAxis',component_property='value')])
-# def update_LSDEnd(fig):
-#         return None
-
-# @app.callback(Output(component_id='LSD_start',component_property='value'),
-#                 [Input(component_id='xAxis',component_property='value')])
-# def update_LSDEnd(fig):
-#         return None
 
 if __name__ == '__main__':
         app.run_server(host="0.0.0.0")
