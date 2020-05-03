@@ -94,13 +94,13 @@ app.layout = html.Div([
 def calculatePredicted(country, y, init_date):
         df = pd.read_csv('full_data.csv')
         df = df[ df['location'] == country ]
-        df = df[ df['date'] == init_date ]
-        # print(df)
-        init_infec = df.iloc[0]['total_cases']
-        # print("Country=", country)
-        # print("Percent Predicted =", y)
-        # print("Init Date =", init_date)
-        # print("Init Infected =", init_infec)
+        if type(init_date) == type('str'):
+                df = df[ df['date'] == init_date ]
+                init_infec = df.iloc[0]['total_cases']
+
+        if (type(init_date) == type(1)):
+                df = df[ df['total_cases'] > 0 ]
+                init_infec = df.iloc[init_date]['total_cases']
 
         dailyPredictedCases = []
         totalPredictedCases = []
@@ -315,9 +315,19 @@ def update_predictedTotal(n_clicks, graph):
                         print(country)
                         print('initDate', initDate)
                         (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], initDate)
-                        totalCases = df[ df['location'] == country ]['total_cases'].values.tolist()
-                        print(totalCases)
-                        data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", Total Cases(Actual)"))
+
+                        if type(initDate) == type('str'):
+                                totalCases = df[ df['location'] == country ]['total_cases'].values.tolist()
+                                print(totalCases)
+                                data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", Total Cases(Actual)"))
+
+                        if (type(initDate) == type(1)):
+                                df = df[ df['location'] == country ]
+                                df = df[ df['total_cases'] > 0 ]
+                                totalCases = df['total_cases'].values.tolist()
+                                print(totalCases)
+                                data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", Total Cases(Actual)"))
+                        
                         data.append(go.Scatter(x=trace['x'], y=predictedTotalCases, mode='markers+lines', name=country+", Total Cases(Predicted)"))
         
         layout = go.Layout(title='COVID-19 Predicted Total Cases',
