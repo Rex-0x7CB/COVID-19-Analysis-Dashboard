@@ -107,7 +107,9 @@ def calculatePredicted(country, y, init_date):
 
         for perc in y:
                 new_case = init_infec * (perc/100)
-                init_infec = init_infec + (init_infec * (perc/100))
+                if new_case < 0:
+                        new_case = 0
+                init_infec = init_infec + new_case
                 dailyPredictedCases.append(new_case)
                 totalPredictedCases.append(int(init_infec))
 
