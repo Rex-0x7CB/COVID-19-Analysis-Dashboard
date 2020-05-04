@@ -169,6 +169,8 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
                         xTitle = 'Dates'
 
                 for parameter in y_axis_parameter:
+                        if y_axis_function == None:
+                                y_axis_function = 'None'
                         print(parameter)
                         if parameter == 'New Cases' and y_axis_function == 'None':
                                 yGraph = pd.Series(new_cases_country)
