@@ -286,6 +286,7 @@ def update_predictedDaily(n_clicks, graph):
         country = ""
         init_date = ""
         data = []
+        # print(graph)
         for trace in graph['data']:
                 # print(trace)
                 if 'LSR(' in trace['name']:
@@ -297,9 +298,15 @@ def update_predictedDaily(n_clicks, graph):
                         country = trace['name'].replace(", LSR Extended", "")
                         (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], init_date, traceData)
                         data.append(go.Bar(x=trace['x'], y=predictedDailyCases, name=country+", Daily New "+traceData.replace("Total ","")+"(Predicted)"))
+
+        if type(init_date) == type('str'):
+                xTitle = 'Dates'
+
+        if (type(init_date) == type(1)):
+                xTitle = 'Days since 1st discovery'
         
         layout = go.Layout(title='COVID-19 Predicted Daily '+traceData.replace("Total ",""),
-                                xaxis=dict(title='Date'),
+                                xaxis=dict(title=xTitle),
                                 yaxis=dict(title='New '+traceData.replace("Total ","")), showlegend=True, hovermode='x')
         fig = go.Figure(data=data, layout=layout)
         return fig
@@ -340,6 +347,7 @@ def update_predictedTotal(n_clicks, graph):
                                 totalCases = df[ df['location'] == country ][col].values.tolist()
                                 print(totalCases)
                                 data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", "+traceData+"(Actual)"))
+                                xTitle = 'Dates'
 
                         if (type(initDate) == type(1)):
                                 df = df[ df['location'] == country ]
@@ -347,11 +355,14 @@ def update_predictedTotal(n_clicks, graph):
                                 totalCases = df[col].values.tolist()
                                 print(totalCases)
                                 data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", "+traceData+"(Actual)"))
+                                xTitle = 'Days since 1st discovery'
                         
                         data.append(go.Scatter(x=trace['x'], y=predictedTotalCases, mode='markers+lines', name=country+", "+traceData+"(Predicted)"))
+
+        
         
         layout = go.Layout(title='COVID-19 Predicted '+traceData,
-                                xaxis=dict(title='Date'),
+                                xaxis=dict(title=xTitle),
                                 yaxis=dict(title=traceData), showlegend=True, hovermode='x')
         fig = go.Figure(data=data, layout=layout)
         return fig
