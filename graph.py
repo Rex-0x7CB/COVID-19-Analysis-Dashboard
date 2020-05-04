@@ -240,20 +240,17 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
                                 le.fit(xGraphPredicted)
 
                                 dataToTrainOn = np.array(le.transform(xGraphPredicted[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1])).reshape((-1,1))
-                                # print(xGraphPredicted[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1])
                                 regr.fit(dataToTrainOn, pd.Series(yGraph[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1].dropna()))
 
                                 # slope = (init_y - final_y) / (init_day - final_day)
                                 predictedLSR = regr.predict(dataToTrainOn)
                                 slope = (predictedLSR[0] - predictedLSR[-1]) / (le.transform([LSD_start]) - le.transform([LSD_end]))
-                                # print("slope=",slope)
                                 if math.isnan(slope) == False:
                                         minimisedLSRTrace = go.Scatter(x=xGraphPredicted[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1], y=predictedLSR, mode='lines', name=country+", "+algo_name+"({:.6f})".format(slope[0]))
                                         data.append(minimisedLSRTrace)
                                         if extendPredictionToThisManyDays > 0:
                                                 dataToPredictOn = np.array(le.transform(xGraphPredicted[xGraphPredicted.index(LSD_end)+1:xGraphPredicted.index(LSD_end)+1+extendPredictionToThisManyDays])).reshape((-1,1))
                                                 minimisedLSRTraceExtended = go.Scatter(x=xGraphPredicted[xGraphPredicted.index(LSD_end)+1:xGraphPredicted.index(LSD_end)+1+extendPredictionToThisManyDays], y=regr.predict(dataToPredictOn), mode='markers+lines', name=country+", "+algo_name+" Extended")
-                                                # print(xGraphPredicted[xGraphPredicted.index(LSD_end)+1:xGraphPredicted.index(LSD_end)+1+extendPredictionToThisManyDays])
                                                 data.append(minimisedLSRTraceExtended)
 
 
@@ -287,10 +284,8 @@ def update_predictedDaily(n_clicks, graph):
         init_date = ""
         traceData = ""
         data = []
-        # print(graph)
         if graph != None:
                 for trace in graph['data']:
-                        # print(trace)
                         if 'LSR(' in trace['name']:
                                 init_date = trace['x'][-1]
                         if '% change' in trace['name']:
@@ -328,21 +323,15 @@ def update_predictedTotal(n_clicks, graph):
         df = pd.read_csv('covid-19-data\public\data\ecdc\\full_data.csv')
         if graph != None:
                 for trace in graph['data']:
-                        print("\t\t Trace name:", trace['name'])
                         if 'LSR(' in trace['name']:
                                 initDate = trace['x'][-1]
-                                print("Total score on", initDate)
-                                print("Slope = ", trace['y'][1] - trace['y'][0])
 
                         if '% change' in trace['name']:
                                 traceData = trace['name'].replace(", % change in ", "")
-                                print("traceData", traceData)
                                 initDateAxis = trace['x']
 
                         if 'LSR Extended' in trace['name']:
                                 country = trace['name'].replace(", LSR Extended", "")
-                                print(country)
-                                print('initDate', initDate)
                                 traceData = traceData.replace(country, "")
                                 (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], initDate, traceData)
 
@@ -353,7 +342,6 @@ def update_predictedTotal(n_clicks, graph):
 
                                 if type(initDate) == type('str'):
                                         totalCases = df[ df['location'] == country ][col].values.tolist()
-                                        print(totalCases)
                                         data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", "+traceData+"(Actual)"))
                                         xTitle = 'Dates'
 
@@ -361,7 +349,6 @@ def update_predictedTotal(n_clicks, graph):
                                         df = df[ df['location'] == country ]
                                         df = df[ df[col] > 0 ]
                                         totalCases = df[col].values.tolist()
-                                        print(totalCases)
                                         data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", "+traceData+"(Actual)"))
                                         xTitle = 'Days since 1st discovery'
                                 
