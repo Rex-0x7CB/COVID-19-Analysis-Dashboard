@@ -1,5 +1,6 @@
 import dash
 import math
+import datetime
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -12,7 +13,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import BayesianRidge
 
 app = dash.Dash()
-df = pd.read_csv('full_data.csv')
+df = pd.read_csv('covid-19-data\public\data\ecdc\\full_data.csv')
 
 countries_options = sorted([dict(label=country, value=country) for country in set([location for location in df.location])], key=lambda k: k['label']) 
 xAxis_options = [dict(label='Day', value='Day'),
@@ -85,22 +86,26 @@ app.layout = html.Div([
                 style=dict(width='50%', display='inline-block')
         )
 
-        
-        
+            
 ]
 )
 
 
-def calculatePredicted(country, y, init_date):
-        df = pd.read_csv('full_data.csv')
+def calculatePredicted(country, y, init_date, traceData):
+        df = pd.read_csv('covid-19-data\public\data\ecdc\\full_data.csv')
         df = df[ df['location'] == country ]
+        if traceData == 'Total Deaths':
+                col = 'total_deaths'
+        elif traceData == 'Total Cases':
+                col = 'total_cases'
+
         if type(init_date) == type('str'):
                 df = df[ df['date'] == init_date ]
-                init_infec = df.iloc[0]['total_cases']
+                init_infec = df.iloc[0][col]
 
         if (type(init_date) == type(1)):
                 df = df[ df['total_cases'] > 0 ]
-                init_infec = df.iloc[init_date]['total_cases']
+                init_infec = df.iloc[init_date][col]
 
         dailyPredictedCases = []
         totalPredictedCases = []
@@ -282,16 +287,20 @@ def update_predictedDaily(n_clicks, graph):
         init_date = ""
         data = []
         for trace in graph['data']:
+                # print(trace)
                 if 'LSR(' in trace['name']:
                         init_date = trace['x'][-1]
+                if '% change' in trace['name']:
+                        traceData = trace['name'].replace("India, % change in ", "")
+                        print("traceData", traceData)
                 if 'LSR Extended' in trace['name']:
                         country = trace['name'].replace(", LSR Extended", "")
-                        (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], init_date)
-                        data.append(go.Bar(x=trace['x'], y=predictedDailyCases, name=country+", New Cases(Predicted)"))
+                        (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], init_date, traceData)
+                        data.append(go.Bar(x=trace['x'], y=predictedDailyCases, name=country+", Daily New "+traceData.replace("Total ","")+"(Predicted)"))
         
-        layout = go.Layout(title='COVID-19 Predicted Daily Cases',
+        layout = go.Layout(title='COVID-19 Predicted Daily '+traceData.replace("Total ",""),
                                 xaxis=dict(title='Date'),
-                                yaxis=dict(title='Daily New Cases'), showlegend=True, hovermode='x')
+                                yaxis=dict(title='New '+traceData.replace("Total ","")), showlegend=True, hovermode='x')
         fig = go.Figure(data=data, layout=layout)
         return fig
         
@@ -304,39 +313,46 @@ def update_predictedTotal(n_clicks, graph):
         country = ""
         data = []
         initDateAxis = []
-        df = pd.read_csv('full_data.csv')
+        df = pd.read_csv('covid-19-data\public\data\ecdc\\full_data.csv')
         for trace in graph['data']:
                 if 'LSR(' in trace['name']:
                         initDate = trace['x'][-1]
-                        print("Total cases on", initDate)
+                        print("Total score on", initDate)
                         print("Slope = ", trace['y'][1] - trace['y'][0])
 
-                if 'LSR' not in trace['name']:
+                if '% change' in trace['name']:
+                        traceData = trace['name'].replace("India, % change in ", "")
+                        print("traceData", traceData)
                         initDateAxis = trace['x']
 
                 if 'LSR Extended' in trace['name']:
                         country = trace['name'].replace(", LSR Extended", "")
                         print(country)
                         print('initDate', initDate)
-                        (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], initDate)
+                        (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], initDate, traceData)
+
+                        if traceData == 'Total Deaths':
+                                col = 'total_deaths'
+                        elif traceData == 'Total Cases':
+                                col = 'total_cases'
 
                         if type(initDate) == type('str'):
-                                totalCases = df[ df['location'] == country ]['total_cases'].values.tolist()
+                                totalCases = df[ df['location'] == country ][col].values.tolist()
                                 print(totalCases)
-                                data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", Total Cases(Actual)"))
+                                data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", "+traceData+"(Actual)"))
 
                         if (type(initDate) == type(1)):
                                 df = df[ df['location'] == country ]
-                                df = df[ df['total_cases'] > 0 ]
-                                totalCases = df['total_cases'].values.tolist()
+                                df = df[ df[col] > 0 ]
+                                totalCases = df[col].values.tolist()
                                 print(totalCases)
-                                data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", Total Cases(Actual)"))
+                                data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", "+traceData+"(Actual)"))
                         
-                        data.append(go.Scatter(x=trace['x'], y=predictedTotalCases, mode='markers+lines', name=country+", Total Cases(Predicted)"))
+                        data.append(go.Scatter(x=trace['x'], y=predictedTotalCases, mode='markers+lines', name=country+", "+traceData+"(Predicted)"))
         
-        layout = go.Layout(title='COVID-19 Predicted Total Cases',
+        layout = go.Layout(title='COVID-19 Predicted '+traceData,
                                 xaxis=dict(title='Date'),
-                                yaxis=dict(title='Daily Total Cases'), showlegend=True, hovermode='x')
+                                yaxis=dict(title=traceData), showlegend=True, hovermode='x')
         fig = go.Figure(data=data, layout=layout)
         return fig
 
