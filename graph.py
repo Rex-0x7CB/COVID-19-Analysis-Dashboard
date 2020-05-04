@@ -307,7 +307,7 @@ def update_predictedTotal(n_clicks, graph):
                 if 'LSR(' in trace['name']:
                         initDate = trace['x'][-1]
                         print("Total cases on", initDate)
-                        print("Slope = ", trace['y'][2] - trace['y'][1])
+                        print("Slope = ", trace['y'][1] - trace['y'][0])
 
                 if 'LSR' not in trace['name']:
                         initDateAxis = trace['x']
