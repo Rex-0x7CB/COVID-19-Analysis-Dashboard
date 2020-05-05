@@ -303,9 +303,9 @@ def update_predictedDaily(n_clicks, graph):
         if (type(init_date) == type(1)):
                 xTitle = 'Days since 1st discovery'
         
-        layout = go.Layout(title='COVID-19 Predicted Daily '+traceData.replace("Total ",""),
+        layout = go.Layout(title='COVID-19 Predictions',
                                 xaxis=dict(title=xTitle),
-                                yaxis=dict(title='New '+traceData.replace("Total ","")), showlegend=True, hovermode='x')
+                                yaxis=dict(title='Count'), showlegend=True, hovermode='x')
         fig = go.Figure(data=data, layout=layout)
         return fig
         
@@ -356,9 +356,9 @@ def update_predictedTotal(n_clicks, graph):
 
         
         
-        layout = go.Layout(title='COVID-19 Predicted '+traceData,
+        layout = go.Layout(title='COVID-19 Predictions',
                                 xaxis=dict(title=xTitle),
-                                yaxis=dict(title=traceData), showlegend=True, hovermode='x')
+                                yaxis=dict(title="Count"), showlegend=True, hovermode='x')
         fig = go.Figure(data=data, layout=layout)
         return fig
 
