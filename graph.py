@@ -241,6 +241,11 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
 
                                 dataToTrainOn = np.array(le.transform(xGraphPredicted[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1])).reshape((-1,1))
                                 regr.fit(dataToTrainOn, pd.Series(yGraph[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1].dropna()))
+                                
+                                # print("#####################################")
+                                # print(xGraphPredicted[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1])
+                                # print(yGraph[xGraphPredicted.index(LSD_start):xGraphPredicted.index(LSD_end)+1].dropna())
+                                # print("#####################################")
 
                                 # slope = (init_y - final_y) / (init_day - final_day)
                                 predictedLSR = regr.predict(dataToTrainOn)
@@ -274,6 +279,57 @@ def update_figure(x_axis, y_axis_function, y_axis_parameter, countries, LSD_star
         # fig.add_trace(go.Scatter(x=xGraph, y=[30000]*len(total_cases_country), mode='lines', line=dict(color='red'), name='30,000 Cases'))
 
         return fig
+
+
+def calculateAverageError(graph,countryName):
+        country = ""
+        init_date = ""
+        traceData = ""
+        temp = 0
+
+        if graph != None:
+                for trace in graph['data']:
+                        if 'LSR(' in trace['name']:
+                                calculatedTraceX = trace['x']
+                                calculatedTraceY = trace['y']
+                                calBegPoint = trace['x'][0]
+                                calEndPoint = trace['x'][-1]
+                                temp +=1
+
+                        if '% change' in trace['name']:
+                                realTraceX = trace['x']
+                                realTraceY = trace['y']
+                                temp +=1
+
+                        if 'LSR Extended' in trace['name']:
+                                country = trace['name'].replace(", LSR Extended", "")
+                                extendedTraceY = trace['y']
+                                temp +=1
+
+                        if temp % 3 == 0 :
+                                calBegPointIndex = realTraceX.index(calBegPoint)
+                                calEndPointIndex = realTraceX.index(calEndPoint)
+                                realTraceX = realTraceX[calBegPointIndex:calEndPointIndex+1]
+                                realTraceY = realTraceY[calBegPointIndex:calEndPointIndex+1]
+
+                                errorTraceY = [ y-x for y,x in zip(calculatedTraceY,realTraceY) ]
+                                errorTraceY = [ y/x if x!=0 else 0 for y,x in zip(errorTraceY,realTraceY) ]
+                                errorTraceY = [ x*100 for x in errorTraceY ]
+
+                                averageError = sum(errorTraceY)/len(errorTraceY)
+
+                                if countryName == country:
+                                        print(country)
+                                        # print("\tcalculated TraceX=", calculatedTraceX)
+                                        # print("\tcalculated TraceY=", calculatedTraceY)
+                                        # print("\trealTraceX=", realTraceX)
+                                        # print("\trealTraceY=", realTraceY)
+                                        # print("\terrorTraceY=", errorTraceY)
+                                        print("\taverageError=", averageError)
+                                        print("\n")
+                                        return averageError
+                                
+
         
 
 @app.callback(Output(component_id='predicted-daily',component_property='figure'),
@@ -283,19 +339,35 @@ def update_predictedDaily(n_clicks, graph):
         country = ""
         init_date = ""
         traceData = ""
+        temp = 0
         data = []
+
+        # print(graph)
         if graph != None:
                 for trace in graph['data']:
                         if 'LSR(' in trace['name']:
                                 init_date = trace['x'][-1]
+                                temp +=1
+
                         if '% change' in trace['name']:
                                 traceData = trace['name'].replace(", % change in ", "")
                                 print("traceData", traceData)
+                                temp +=1
+
                         if 'LSR Extended' in trace['name']:
                                 country = trace['name'].replace(", LSR Extended", "")
                                 traceData = traceData.replace(country, "")
-                                (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], init_date, traceData)
+                                extendedTraceY = trace['y']
+                                temp +=1
+
+                        if temp % 3 == 0 :
+                                averageError = calculateAverageError(graph, country)
+                                (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, extendedTraceY, init_date, traceData)
+                                predictedDailyCases = [ x-(averageError*x)/100 for x in predictedDailyCases ]
+
                                 data.append(go.Bar(x=trace['x'], y=predictedDailyCases, name=country+", Daily New "+traceData.replace("Total ","")+"(Predicted)"))
+                                
+
 
         if type(init_date) == type('str'):
                 xTitle = 'Dates'
@@ -320,39 +392,64 @@ def update_predictedTotal(n_clicks, graph):
         xTitle = ""
         data = []
         initDateAxis = []
+        temp = 0
         df = pd.read_csv('covid-19-data\public\data\ecdc\\full_data.csv')
         if graph != None:
                 for trace in graph['data']:
                         if 'LSR(' in trace['name']:
+                                temp += 1
                                 initDate = trace['x'][-1]
 
                         if '% change' in trace['name']:
+                                temp += 1
                                 traceData = trace['name'].replace(", % change in ", "")
                                 initDateAxis = trace['x']
 
                         if 'LSR Extended' in trace['name']:
+                                temp += 1
                                 country = trace['name'].replace(", LSR Extended", "")
                                 traceData = traceData.replace(country, "")
-                                (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, trace['y'], initDate, traceData)
+                                extendedTraceY = trace['y']
+                                extendedTraceX = trace['x']
+                                (predictedDailyCases, predictedTotalCases) = calculatePredicted(country, extendedTraceY , initDate, traceData)
 
                                 if traceData == 'Total Deaths':
                                         col = 'total_deaths'
                                 elif traceData == 'Total Cases':
                                         col = 'total_cases'
+                        
+                        if temp % 3 == 0:
+                                totalPredictedCases = []
+                                averageError = calculateAverageError(graph, country)
+                                dfCountry = df[ df['location'] == country ]
 
                                 if type(initDate) == type('str'):
-                                        totalCases = df[ df['location'] == country ][col].values.tolist()
+                                        tempDf = dfCountry[ dfCountry['date'] == initDate ]
+                                        init_infec = tempDf.iloc[0][col]
+
+                                        totalCases = dfCountry[col].values.tolist()
                                         data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", "+traceData+"(Actual)"))
                                         xTitle = 'Dates'
 
                                 if (type(initDate) == type(1)):
-                                        df = df[ df['location'] == country ]
-                                        df = df[ df[col] > 0 ]
-                                        totalCases = df[col].values.tolist()
+                                        tempDf = dfCountry[ dfCountry['total_cases'] > 0 ]
+                                        init_infec = tempDf.iloc[initDate][col]
+
+                                        dfCountry = dfCountry[ dfCountry[col] > 0 ]
+                                        totalCases = dfCountry[col].values.tolist()
                                         data.append(go.Scatter(x=initDateAxis, y=totalCases, mode='markers+lines', name=country+", "+traceData+"(Actual)"))
                                         xTitle = 'Days since 1st discovery'
-                                
-                                data.append(go.Scatter(x=trace['x'], y=predictedTotalCases, mode='markers+lines', name=country+", "+traceData+"(Predicted)"))
+
+                                count = 0
+                                predictedDailyCases = [ x-(averageError*x)/100 for x in predictedDailyCases ]
+                        
+                                for perc in extendedTraceY:
+                                        init_infec = init_infec + predictedDailyCases[count]
+                                        totalPredictedCases.append(int(init_infec))
+                                        count+=1
+                                                                
+                                data.append(go.Scatter(x=extendedTraceX, y=predictedTotalCases, mode='markers+lines', name=country+", "+traceData+"(Predicted)"))
+                                data.append(go.Scatter(x=extendedTraceX, y=totalPredictedCases, mode='markers+lines', name=country+", "+traceData+"(Predicted EC)"))
 
         
         
