@@ -19,6 +19,10 @@ countries_options = sorted([dict(label=country, value=country) for country in se
 xAxis_options = [dict(label='Day', value='Day'),
                  dict(label='Date', value='Date')]
 
+correctedError_options = [dict(label='Prediction Without Corrected Error', value=True),
+                 dict(label="Prediction With Corrected Error", value=False)]
+
+
 yAxis_function = [dict(label='None',value='None'),
                   dict(label='Log 10',value='Log 10'),
                   dict(label='% Change',value='% Change')
@@ -70,8 +74,14 @@ app.layout = html.Div([
         ),
         
         html.Div([dcc.Dropdown(id='countries_picker', options=countries_options, multi=True, value=['India'])],
-                style=dict(width='95%', display='inline-block')
+                style=dict(width='70%', display='inline-block')
         ),
+
+        html.Div([dcc.Dropdown(id='correctedError', options=correctedError_options, value=False)],
+                style=dict(width='18%', display='inline-block')
+        ),
+
+
         html.Div([html.Button(id='predict_total', n_clicks=0, children='Predict')],
                 style=dict(width='5%', display='inline-block')
         ),
@@ -384,8 +394,8 @@ def update_predictedDaily(n_clicks, graph):
 
 @app.callback(Output(component_id='predicted-total',component_property='figure'),
                 [Input(component_id='predict_total', component_property='n_clicks')],
-                [State(component_id='graph-main',component_property='figure')])
-def update_predictedTotal(n_clicks, graph):
+                [State(component_id='graph-main',component_property='figure'), State(component_id='correctedError',component_property='value')])
+def update_predictedTotal(n_clicks, graph, correctedErrorOption):
         print("Current State Of Graph")
         country = ""
         traceData = ""
@@ -447,8 +457,8 @@ def update_predictedTotal(n_clicks, graph):
                                         init_infec = init_infec + predictedDailyCases[count]
                                         totalPredictedCases.append(int(init_infec))
                                         count+=1
-                                                                
-                                data.append(go.Scatter(x=extendedTraceX, y=predictedTotalCases, mode='markers+lines', name=country+", "+traceData+"(Predicted)"))
+                                if correctedErrorOption:
+                                        data.append(go.Scatter(x=extendedTraceX, y=predictedTotalCases, mode='markers+lines', name=country+", "+traceData+"(Predicted)"))
                                 data.append(go.Scatter(x=extendedTraceX, y=totalPredictedCases, mode='markers+lines', name=country+", "+traceData+"(Predicted EC)"))
 
         
