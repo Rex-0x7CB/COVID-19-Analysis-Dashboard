@@ -1,3 +1,4 @@
+import re
 import dash
 import math
 import datetime
@@ -299,7 +300,7 @@ def calculateAverageError(graph,countryName):
 
         if graph != None:
                 for trace in graph['data']:
-                        if 'LSR(' in trace['name']:
+                        if '(' in trace['name']:
                                 calculatedTraceX = trace['x']
                                 calculatedTraceY = trace['y']
                                 calBegPoint = trace['x'][0]
@@ -311,8 +312,8 @@ def calculateAverageError(graph,countryName):
                                 realTraceY = trace['y']
                                 temp +=1
 
-                        if 'LSR Extended' in trace['name']:
-                                country = trace['name'].replace(", LSR Extended", "")
+                        if 'Extended' in trace['name']:
+                                country = re.sub(",.*Extended", "", trace['name']) # re.sub(",.*Extended", "", trace['name'])
                                 extendedTraceY = trace['y']
                                 temp +=1
 
@@ -355,7 +356,7 @@ def update_predictedDaily(n_clicks, graph):
         # print(graph)
         if graph != None:
                 for trace in graph['data']:
-                        if 'LSR(' in trace['name']:
+                        if '(' in trace['name']:
                                 init_date = trace['x'][-1]
                                 temp +=1
 
@@ -364,8 +365,8 @@ def update_predictedDaily(n_clicks, graph):
                                 print("traceData", traceData)
                                 temp +=1
 
-                        if 'LSR Extended' in trace['name']:
-                                country = trace['name'].replace(", LSR Extended", "")
+                        if 'Extended' in trace['name']:
+                                country = re.sub(",.*Extended", "", trace['name']) # re.sub(",.*Extended", "", trace['name'])
                                 traceData = traceData.replace(country, "")
                                 extendedTraceY = trace['y']
                                 temp +=1
@@ -406,7 +407,7 @@ def update_predictedTotal(n_clicks, graph, correctedErrorOption):
         df = pd.read_csv('covid-19-data\public\data\ecdc\\full_data.csv')
         if graph != None:
                 for trace in graph['data']:
-                        if 'LSR(' in trace['name']:
+                        if '(' in trace['name']:
                                 temp += 1
                                 initDate = trace['x'][-1]
 
@@ -415,9 +416,9 @@ def update_predictedTotal(n_clicks, graph, correctedErrorOption):
                                 traceData = trace['name'].replace(", % change in ", "")
                                 initDateAxis = trace['x']
 
-                        if 'LSR Extended' in trace['name']:
+                        if 'Extended' in trace['name']:
                                 temp += 1
-                                country = trace['name'].replace(", LSR Extended", "")
+                                country = re.sub(",.*Extended", "", trace['name']) # re.sub(",.*Extended", "", trace['name'])
                                 traceData = traceData.replace(country, "")
                                 extendedTraceY = trace['y']
                                 extendedTraceX = trace['x']
