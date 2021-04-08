@@ -14,7 +14,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import BayesianRidge
 
 app = dash.Dash()
-df = pd.read_csv('covid-19-data\public\data\ecdc\\full_data.csv')
+df = pd.read_csv('covid-19-data\public\data\owid-covid-data.csv')
 
 countries_options = sorted([dict(label=country, value=country) for country in set([location for location in df.location])], key=lambda k: k['label']) 
 xAxis_options = [dict(label='Day', value='Day'),
@@ -46,7 +46,7 @@ predictForThisManyDays = sorted([dict(label=i, value=i) for i in [i for i in ran
 
 app.layout = html.Div([
 
-        html.Div([dcc.Dropdown(id='xAxis', options=xAxis_options, value='Day')],
+        html.Div([dcc.Dropdown(id='xAxis', options=xAxis_options, value='Date')],
                 style=dict(width='10%', display='inline-block')
         ),
 
