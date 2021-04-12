@@ -14,7 +14,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import BayesianRidge
 
 app = dash.Dash()
-df = pd.read_csv('covid-19-data\public\data\owid-covid-data.csv')
+pathToDatafile = 'covid-19-data\public\data\owid-covid-data.csv'
+df = pd.read_csv(pathToDatafile)
 
 countries_options = sorted([dict(label=country, value=country) for country in set([location for location in df.location])], key=lambda k: k['label']) 
 xAxis_options = [dict(label='Day', value='Day'),
@@ -103,7 +104,7 @@ app.layout = html.Div([
 
 
 def calculatePredicted(country, y, init_date, traceData):
-        df = pd.read_csv('covid-19-data\public\data\ecdc\\full_data.csv')
+        df = pd.read_csv(pathToDatafile)
         df = df[ df['location'] == country ]
         if traceData == 'Total Deaths':
                 col = 'total_deaths'
@@ -112,6 +113,7 @@ def calculatePredicted(country, y, init_date, traceData):
 
         if type(init_date) == type('str'):
                 df = df[ df['date'] == init_date ]
+                print(df)
                 init_infec = df.iloc[0][col]
 
         if (type(init_date) == type(1)):
@@ -404,7 +406,7 @@ def update_predictedTotal(n_clicks, graph, correctedErrorOption):
         data = []
         initDateAxis = []
         temp = 0
-        df = pd.read_csv('covid-19-data\public\data\ecdc\\full_data.csv')
+        df = pd.read_csv(pathToDatafile)
         if graph != None:
                 for trace in graph['data']:
                         if '(' in trace['name']:
