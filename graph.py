@@ -113,7 +113,6 @@ def calculatePredicted(country, y, init_date, traceData):
 
         if type(init_date) == type('str'):
                 df = df[ df['date'] == init_date ]
-                print(df)
                 init_infec = df.iloc[0][col]
 
         if (type(init_date) == type(1)):
